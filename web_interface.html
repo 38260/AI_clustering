@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI错误分析系统 - 聚类分析接口</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        
+        input[type="text"]:focus {
+            border-color: #4CAF50;
+            outline: none;
+        }
+        
+        .button-group {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 0 10px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        .secondary-btn {
+            background-color: #2196F3;
+        }
+        
+        .secondary-btn:hover {
+            background-color: #1976D2;
+        }
+        
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+            white-space: pre-line;
+        }
+        
+        .status.success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .status.error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        
+        .status.info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        
+        .loading {
+            text-align: center;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .results {
+            margin-top: 30px;
+            display: none;
+        }
+        
+        .results-header {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .categories-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        
+        .category-item {
+            padding: 8px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-radius: 3px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .example-data {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        
+        .api-url {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 AI错误分析系统 - 聚类分析</h1>
+        
+        <div class="example-data">
+            <h3>📋 示例数据</h3>
+            <p><strong>学期ID:</strong> 17787 (可用的学期)</p>
+            <p><strong>题目ID:</strong> 65246, 65250, 65251 (可用的题目)</p>
+            <p>你可以使用这些示例数据进行测试，或输入你自己的数据。</p>
+        </div>
+        
+        <form id="clusteringForm">
+            <div class="form-group">
+                <label for="termId">学期ID (Term ID):</label>
+                <input type="text" id="termId" name="termId" value="17787" required 
+                       placeholder="例如: 17787">
+            </div>
+            
+            <div class="form-group">
+                <label for="questionId">题目ID (Question ID):</label>
+                <input type="text" id="questionId" name="questionId" value="65251" required 
+                       placeholder="例如: 65251">
+            </div>
+            
+            <div class="api-url">
+                <strong>API地址:</strong> <span id="apiUrl">http://localhost:5000/domain/api/clustering</span>
+            </div>
+            
+            <div class="button-group">
+                <button type="submit" id="analyzeBtn">🚀 开始聚类分析</button>
+                <button type="button" id="healthBtn" class="secondary-btn">🔍 检查服务状态</button>
+                <button type="button" id="clearBtn" class="secondary-btn">�️ 清空结果</button>
+            </div>
+        </form>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>正在执行聚类分析，这可能需要几分钟时间，请耐心等待...</p>
+            <p id="loadingStatus">准备中...</p>
+        </div>
+        
+        <div class="status" id="status"></div>
+        
+        <div class="results" id="results">
+            <div class="results-header">
+                <h2>📊 JSON数据响应</h2>
+                <p><strong>学期ID:</strong> <span id="resultTermId"></span></p>
+                <p><strong>题目ID:</strong> <span id="resultQuestionId"></span></p>
+            </div>
+            
+            <div>
+                <h3>📄 完整响应数据 
+                    <button type="button" id="toggleBtn" style="margin-left: 10px; padding: 5px 10px; font-size: 12px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">
+                        折叠显示
+                    </button>
+                    <button type="button" id="copyBtn" style="margin-left: 5px; padding: 5px 10px; font-size: 12px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;">
+                        复制JSON
+                    </button>
+                </h3>
+                <div id="rawResponseData" style="background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-y: auto; word-wrap: break-word; white-space: pre-wrap;">
+                    <!-- JSON响应数据将在这里显示 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 版本: v2.0 - 简化版本，删除result_list检查
+        const API_BASE_URL = 'http://localhost:5000';
+        
+        // DOM 元素
+        const form = document.getElementById('clusteringForm');
+        const loading = document.getElementById('loading');
+        const status = document.getElementById('status');
+        const results = document.getElementById('results');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const healthBtn = document.getElementById('healthBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const loadingStatus = document.getElementById('loadingStatus');
+        
+        // 显示状态消息
+        function showStatus(message, type = 'info') {
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+        }
+        
+        // 隐藏状态消息
+        function hideStatus() {
+            status.style.display = 'none';
+        }
+        
+        // 显示加载状态
+        function showLoading(message = '准备中...') {
+            loading.style.display = 'block';
+            loadingStatus.textContent = message;
+            analyzeBtn.disabled = true;
+        }
+        
+        // 隐藏加载状态
+        function hideLoading() {
+            loading.style.display = 'none';
+            analyzeBtn.disabled = false;
+        }
+        
+        // 显示JSON响应数据 - 简化版本，完整显示所有数据
+        function displayResults(responseData) {
+            console.log('收到API响应:', responseData);
+            
+            // 基本信息
+            document.getElementById('resultTermId').textContent = responseData.term_id || '未知';
+            document.getElementById('resultQuestionId').textContent = responseData.question_id || '未知';
+            
+            // 显示完整的JSON响应数据，不限制高度
+            const rawDataDiv = document.getElementById('rawResponseData');
+            const jsonString = JSON.stringify(responseData, null, 2);
+            rawDataDiv.innerHTML = `<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: monospace; font-size: 12px; margin: 0; line-height: 1.4;">${jsonString}</pre>`;
+            
+            // 设置折叠/展开功能
+            const toggleBtn = document.getElementById('toggleBtn');
+            let isCollapsed = false;
+            
+            toggleBtn.onclick = function() {
+                if (isCollapsed) {
+                    rawDataDiv.style.maxHeight = 'none';
+                    toggleBtn.textContent = '折叠显示';
+                    isCollapsed = false;
+                } else {
+                    rawDataDiv.style.maxHeight = '400px';
+                    toggleBtn.textContent = '展开全部';
+                    isCollapsed = true;
+                }
+            };
+            
+            // 设置复制功能
+            const copyBtn = document.getElementById('copyBtn');
+            copyBtn.onclick = async function() {
+                try {
+                    await navigator.clipboard.writeText(jsonString);
+                    copyBtn.textContent = '已复制!';
+                    copyBtn.style.background = '#6c757d';
+                    setTimeout(() => {
+                        copyBtn.textContent = '复制JSON';
+                        copyBtn.style.background = '#28a745';
+                    }, 2000);
+                } catch (err) {
+                    console.error('复制失败:', err);
+                    // 备用方法：选择文本
+                    const range = document.createRange();
+                    range.selectNode(rawDataDiv.querySelector('pre'));
+                    window.getSelection().removeAllRanges();
+                    window.getSelection().addRange(range);
+                    copyBtn.textContent = '已选择文本';
+                    copyBtn.style.background = '#6c757d';
+                    setTimeout(() => {
+                        copyBtn.textContent = '复制JSON';
+                        copyBtn.style.background = '#28a745';
+                    }, 2000);
+                }
+            };
+            
+            results.style.display = 'block';
+        }
+        
+        // 检查服务健康状态
+        async function checkHealth() {
+            try {
+                showLoading('检查服务状态...');
+                const response = await fetch(`${API_BASE_URL}/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showStatus(`✅ 服务状态: ${data.status}, 数据库: ${data.database}`, 'success');
+                } else {
+                    showStatus(`❌ 服务检查失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`❌ 无法连接到服务: ${error.message}`, 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // 执行聚类分析 - 简化版本，使用原来的接口，中断时也显示数据
+        async function performClustering(termId, questionId) {
+            try {
+                showLoading('正在执行聚类分析...');
+                hideStatus();
+                results.style.display = 'none';
+                
+                const response = await fetch(`${API_BASE_URL}/domain/api/clustering`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        term_id: termId,
+                        question_id: questionId
+                    })
+                });
+                
+                const responseData = await response.json();
+                console.log('完整API响应:', responseData);
+                
+                // 无论成功还是失败，都显示JSON响应数据
+                displayResults(responseData);
+                
+                if (responseData.success) {
+                    showStatus('✅ 聚类分析完成!', 'success');
+                } else {
+                    showStatus(`❌ 分析失败: ${responseData.message}`, 'error');
+                    if (responseData.error_details) {
+                        console.error('错误详情:', responseData.error_details);
+                    }
+                }
+            } catch (error) {
+                console.error('请求异常:', error);
+                showStatus(`❌ 请求失败: ${error.message}`, 'error');
+                
+                // 即使出现异常，也尝试显示错误信息的JSON格式
+                const errorResponse = {
+                    success: false,
+                    message: `请求失败: ${error.message}`,
+                    term_id: termId,
+                    question_id: questionId,
+                    statistics: {},
+                    ai_table_data: [],
+                    error_type: 'network_error',
+                    timestamp: new Date().toISOString()
+                };
+                displayResults(errorResponse);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // 清空结果
+        function clearResults() {
+            results.style.display = 'none';
+            hideStatus();
+        }
+        
+        // 事件监听器
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const termId = document.getElementById('termId').value.trim();
+            const questionId = document.getElementById('questionId').value.trim();
+            
+            if (!termId || !questionId) {
+                showStatus('❌ 请填写学期ID和题目ID', 'error');
+                return;
+            }
+            
+            await performClustering(termId, questionId);
+        });
+        
+        healthBtn.addEventListener('click', checkHealth);
+        clearBtn.addEventListener('click', clearResults);
+        
+        // 页面加载时检查服务状态
+        window.addEventListener('load', () => {
+            showStatus('💡 提示: 点击"检查服务状态"确认API服务正在运行', 'info');
+        });
+    </script>
+</body>
+</html>

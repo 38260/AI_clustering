@@ -1,0 +1,75 @@
+# =============================================================================
+# AI代码分析系统配置文件示例
+# 复制此文件为 config.ini 并填入实际配置值
+# =============================================================================
+
+[API]
+# AI API配置
+api_url = https://your-api-endpoint.com/v1/chat/completions
+api_key = your-api-key-here
+model = qwen-plus
+temperature = 0
+timeout = 30
+max_retry = 3
+
+# 多线程配置
+max_workers = 8
+request_delay = 0.2
+
+[AI_analysis timeout]
+# AI分析超时配置（秒）
+analysis_timeout = 600  # 10分钟，根据实际需要调整
+
+[Prompt]
+# Prompt配置
+system_prompt_path = assets/system_prompt.txt
+user_prompt = 题目配置：{question_info}\n\n参考答案：{standard_code}\n\n用户作答：{answer_code}\n\n错误信息：{error_info}
+
+[Database]
+# 数据库连接配置
+host = localhost
+port = 3306
+user = your_username
+password = your_password
+database = your_database_name
+
+# 生产环境示例（注释掉）
+#host = your-production-host
+#port = 3306
+#user = your_prod_user
+#password = your_prod_password
+#database = your_prod_database
+
+[DataTable]
+# 数据表名配置
+records_table = code_clustering_user_answer_record
+question_info_table = code_clustering_question_parse
+
+# =============================================================================
+# 配置说明
+# =============================================================================
+# 
+# [API] 部分：
+# - api_url: AI服务的API端点
+# - api_key: API访问密钥
+# - model: 使用的AI模型名称
+# - temperature: 生成文本的随机性（0-1）
+# - timeout: 请求超时时间（秒）
+# - max_retry: 最大重试次数
+# - max_workers: 并发处理的最大线程数
+# - request_delay: 请求间延迟（秒）
+#
+# [AI_analysis timeout] 部分：
+# - analysis_timeout: AI分析单个任务的超时时间（秒）
+#
+# [Prompt] 部分：
+# - system_prompt_path: 系统提示词文件路径
+# - user_prompt: 用户提示词模板
+#
+# [Database] 部分：
+# - 数据库连接参数
+#
+# [DataTable] 部分：
+# - records_table: 用户答案记录表名
+# - question_info_table: 题目信息解析表名
+#

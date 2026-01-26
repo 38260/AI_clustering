@@ -1,0 +1,17 @@
+# 配置文件
+config.ini
+
+# 数据文件
+data/
+*.xlsx
+report_*.txt
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 环境变量
+.env
+
+# 日志文件
+*.log
