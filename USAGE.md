@@ -29,7 +29,7 @@ python src/AIProcess/AI_process.py <term_id> <question_id>
 
 **功能**：
 - 调用AI API分析每个错误代码
-- 实现三级分类：category → subcategory → specific_reason
+- 实现三级分类：category → subcategory → thirdCategory
 - 自动创建和维护错误分类数据库表
 - 生成详细的分析报告
 
@@ -82,15 +82,14 @@ template_id = 6765
 ### 分类层级
 1. **category（主类别）**：语法错误、逻辑错误、其他错误
 2. **subcategory（子类别）**：条件判断错误、循环结束条件错误、变量使用错误等
-3. **specific_reason（具体问题）**：缺少操作符、变量未定义、括号不匹配等
+3. **thirdCategory（三级类别）**：更细分的错误类型
 
 ### AI分析输出格式
 ```json
 {
   "category": "语法错误",
   "subcategory": "缺少操作符",
-  "specific_reason": "缺少<<",
-  "reason": "输出语句缺少<<操作符",
+  "thirdCategory": "输出语句错误",
   "mark_code": "标记后的代码"
 }
 ```

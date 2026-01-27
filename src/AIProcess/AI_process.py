@@ -91,11 +91,11 @@ def create_reusable_category_table(conn, term_id, question_id):
             id INT AUTO_INCREMENT PRIMARY KEY,
             category VARCHAR(100) NOT NULL,
             subcategory VARCHAR(150) NOT NULL,
-            specific_reason VARCHAR(300) NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE KEY unique_category (category(50), subcategory(80), specific_reason(150)),
+            thirdCategory VARCHAR(200) NOT NULL,
+            UNIQUE KEY unique_category (category(50), subcategory(80), thirdCategory(100)),
             INDEX idx_category (category),
-            INDEX idx_subcategory (subcategory)
+            INDEX idx_subcategory (subcategory),
+            INDEX idx_thirdCategory (thirdCategory)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """
         cursor.execute(create_table_sql)
@@ -106,7 +106,7 @@ def create_reusable_category_table(conn, term_id, question_id):
         ]
         
         insert_sql = f"""
-        INSERT IGNORE INTO {table_name} (category, subcategory, specific_reason)
+        INSERT IGNORE INTO {table_name} (category, subcategory, thirdCategory)
         VALUES (%s, %s, %s)
         """
         cursor.executemany(insert_sql, initial_categories)
@@ -119,7 +119,7 @@ def load_categories_from_db(conn, table_name):
     """从数据库加载分类数据"""
     try:
         cursor = conn.cursor(dictionary=True)
-        cursor.execute(f"SELECT DISTINCT category, subcategory, specific_reason FROM {table_name}")
+        cursor.execute(f"SELECT DISTINCT category, subcategory, thirdCategory FROM {table_name}")
         rows = cursor.fetchall()
         cursor.close()
         
@@ -128,19 +128,29 @@ def load_categories_from_db(conn, table_name):
         for row in rows:
             category = row['category']
             subcategory = row['subcategory']
+            thirdCategory = row['thirdCategory']
             
             if category not in categories:
-                categories[category] = []
+                categories[category] = {}
             
             if subcategory not in categories[category]:
-                categories[category].append(subcategory)
+                categories[category][subcategory] = []
+            
+            if thirdCategory not in categories[category][subcategory]:
+                categories[category][subcategory].append(thirdCategory)
         
         # 转换为列表格式
         result = []
         for category, subcategories in categories.items():
+            subcategory_list = []
+            for subcategory, thirdCategories in subcategories.items():
+                subcategory_list.append({
+                    'subcategory': subcategory,
+                    'thirdCategory': thirdCategories
+                })
             result.append({
                 'category': category,
-                'subcategory': subcategories
+                'subcategory': subcategory_list
             })
         
         return result
@@ -190,7 +200,9 @@ def create_ai_table(conn, table_name):
             question_id BIGINT NOT NULL,
             category VARCHAR(255),
             subcategory VARCHAR(255),
+            thirdCategory VARCHAR(255),
             specific_reason VARCHAR(300),
+            mark_code LONGTEXT,
             standard_code LONGTEXT,
             answer_code LONGTEXT,
             error_info TEXT,
@@ -213,8 +225,12 @@ def create_ai_table(conn, table_name):
             cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN category VARCHAR(255)")
         if 'subcategory' not in columns:
             cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN subcategory VARCHAR(255)")
+        if 'thirdCategory' not in columns:
+            cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN thirdCategory VARCHAR(255)")
         if 'specific_reason' not in columns:
             cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN specific_reason VARCHAR(300)")
+        if 'mark_code' not in columns:
+            cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN mark_code LONGTEXT")
         if 'standard_code' not in columns:
             cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN standard_code LONGTEXT")
         if 'answer_code' not in columns:
@@ -374,9 +390,9 @@ def update_reusable_category_db(conn, category_table_name, ai_response):
         try:
             category = ai_response.get('category', '')
             subcategory = ai_response.get('subcategory', '')
-            specific_reason = ai_response.get('specific_reason', '')
+            thirdCategory = ai_response.get('thirdCategory', '')
             
-            if not category or not subcategory or not specific_reason:
+            if not category or not subcategory or not thirdCategory:
                 return
             
             # 统计主类别使用次数
@@ -389,8 +405,8 @@ def update_reusable_category_db(conn, category_table_name, ai_response):
             # 检查是否已存在完全相同的记录
             cursor.execute(f"""
                 SELECT id FROM {category_table_name} 
-                WHERE category = %s AND subcategory = %s AND specific_reason = %s
-            """, (category, subcategory, specific_reason))
+                WHERE category = %s AND subcategory = %s AND thirdCategory = %s
+            """, (category, subcategory, thirdCategory))
             
             if cursor.fetchone():
                 cursor.close()
@@ -420,20 +436,20 @@ def update_reusable_category_db(conn, category_table_name, ai_response):
             
             # 插入新的分类记录
             insert_sql = f"""
-            INSERT IGNORE INTO {category_table_name} (category, subcategory, specific_reason)
+            INSERT IGNORE INTO {category_table_name} (category, subcategory, thirdCategory)
             VALUES (%s, %s, %s)
             """
-            cursor.execute(insert_sql, (category, subcategory, specific_reason))
+            cursor.execute(insert_sql, (category, subcategory, thirdCategory))
             
             if cursor.rowcount > 0:
                 category_updates['new_subcategories'].append({
                     'category': category,
                     'subcategory': subcategory,
-                    'specific_reason': specific_reason
+                    'thirdCategory': thirdCategory
                 })
                 # 强制提交事务，确保其他线程能立即看到更新
                 conn.commit()
-                print(f"新增分类: {category} -> {subcategory} -> {specific_reason}")
+                print(f"新增分类: {category} -> {subcategory} -> {thirdCategory}")
             
             cursor.close()
                 
@@ -451,16 +467,18 @@ def insert_ai_result(conn, table_name, data):
         cursor = conn.cursor()
         insert_sql = f"""
         INSERT INTO {table_name} (
-            answer_hash, question_id, category, subcategory, specific_reason,
+            answer_hash, question_id, category, subcategory, thirdCategory, specific_reason, mark_code,
             standard_code, answer_code, error_info, response
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         cursor.execute(insert_sql, (
             data['answer_hash'],
             data['question_id'],
             data['category'],
             data['subcategory'],
+            data['thirdCategory'],
             data['specific_reason'],
+            data['mark_code'],
             data['standard_code'],
             data['answer_code'],
             data['error_info'],
@@ -507,7 +525,7 @@ def process_single_record(args):
         
         if ai_response:
             # 验证AI响应的完整性
-            required_fields = ['category', 'subcategory', 'specific_reason']
+            required_fields = ['category', 'subcategory', 'thirdCategory', 'specific_reason', 'mark_code']
             missing_fields = [field for field in required_fields if not ai_response.get(field)]
             
             if missing_fields:
@@ -523,7 +541,9 @@ def process_single_record(args):
                 'question_id': question_info.get('question_id', ''),
                 'category': ai_response.get('category', ''),
                 'subcategory': ai_response.get('subcategory', ''),
+                'thirdCategory': ai_response.get('thirdCategory', ''),
                 'specific_reason': ai_response.get('specific_reason', ''),
+                'mark_code': ai_response.get('mark_code', ''),
                 'standard_code': question_info.get('standard_code', ''),
                 'answer_code': row.get('answer_code', '') if pd.notna(row.get('answer_code')) else '',
                 'error_info': row.get('error_info', '') if pd.notna(row.get('error_info')) else '',
@@ -782,7 +802,7 @@ def process_ai_analysis(term_id, question_id):
         if category_updates['new_subcategories']:
             report_lines.append(f"新增分类记录 ({len(category_updates['new_subcategories'])}个):")
             for item in category_updates['new_subcategories']:
-                report_lines.append(f"  ✓ {item['category']} -> {item['subcategory']} -> {item['specific_reason']}")
+                report_lines.append(f"  ✓ {item['category']} -> {item['subcategory']} -> {item['thirdCategory']}")
             report_lines.append("")
         else:
             report_lines.append("新增分类记录: 无")

@@ -4,7 +4,7 @@
 
 ## 核心功能
 
-- **三级错误分类**：category → subcategory → specific_reason
+- **三级错误分类**：category → subcategory → thirdCategory
 - **数据库集成**：从MySQL读取学生答题数据，按answer_hash聚合
 - **AI分析**：调用大语言模型API进行错误分类
 - **API服务**：提供数据概览和分析接口
