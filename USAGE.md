@@ -11,7 +11,7 @@ AI错误分析系统是一个专门用于分析学生编程错误的智能化工
 
 **使用方法**：
 ```bash
-python src/AIProcess/dataProcess.py <question_id> <term_id>
+python src/AIProcess/dataProcess.py <term_id> <question_id>
 ```
 
 **功能**：
@@ -28,6 +28,7 @@ python src/AIProcess/AI_process.py <term_id> <question_id>
 ```
 
 **功能**：
+- 直接从数据库读取并聚合数据（不依赖Excel文件）
 - 调用AI API分析每个错误代码
 - 实现三级分类：category → subcategory → thirdCategory
 - 自动创建和维护错误分类数据库表
@@ -38,7 +39,7 @@ python src/AIProcess/AI_process.py <term_id> <question_id>
 ### config.ini 完整配置
 ```ini
 [Database]
-host = 10.72.96.33
+host = your_host
 port = 3306
 user = bitest
 password = your_password
@@ -64,7 +65,7 @@ records_table = code_clustering_user_answer_record
 question_info_table = code_clustering_question_parse
 
 [Template]
-template_id = 6765
+template_id = 1001
 ```
 
 ## 数据库表结构
@@ -74,8 +75,8 @@ template_id = 6765
 - **code_clustering_question_parse**：题目信息表
 
 ### 输出表（自动创建）
-- **ai_{term_id}_{question_id}**：AI分析结果表
-- **reusableCategory_{term_id}_{question_id}**：错误分类表
+- **ai_{term_id}**：AI分析结果表（包含question_id字段用于筛选）
+- **reusableCategory_{term_id}**：错误分类表（包含question_id字段用于筛选）
 
 ## 三级分类体系
 
@@ -103,11 +104,11 @@ python run.py 17787 77337
 
 ### 分步执行
 ```bash
-# 步骤1：数据处理
-python src/AIProcess/dataProcess.py 77337 17787
+# 步骤1：数据处理（生成Excel文件）
+python src/AIProcess/dataProcess.py 17787 77337
 # 输出：数据处理完成 [term_id=17787, question_id=77337]: 168 条聚合记录, 168 个用户
 
-# 步骤2：AI分析
+# 步骤2：AI分析（直接从数据库读取数据进行分析）
 python src/AIProcess/AI_process.py 17787 77337
 # 输出：AI分析完成 [term_id=17787, question_id=77337]: 165/168 (98.2%)
 ```
@@ -218,7 +219,7 @@ analysis_timeout = 600 # AI分析总超时时间（秒）
 #### 分步调试
 ```bash
 # 单独测试数据处理
-python src/AIProcess/dataProcess.py 77337 17787
+python src/AIProcess/dataProcess.py 17787 77337
 
 # 单独测试AI分析
 python src/AIProcess/AI_process.py 17787 77337

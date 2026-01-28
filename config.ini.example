@@ -16,7 +16,6 @@ max_retry = 3
 max_workers = 8
 request_delay = 0.2
 
-[AI_analysis timeout]
 # AI分析超时配置（秒）
 analysis_timeout = 600  # 10分钟，根据实际需要调整
 
@@ -33,7 +32,7 @@ user = your_username
 password = your_password
 database = your_database_name
 
-# 生产环境示例（注释掉）
+# 生产环境示例
 #host = your-production-host
 #port = 3306
 #user = your_prod_user
@@ -44,6 +43,10 @@ database = your_database_name
 # 数据表名配置
 records_table = code_clustering_user_answer_record
 question_info_table = code_clustering_question_parse
+
+[Template]
+# 模板配置
+template_id = 1001
 
 # =============================================================================
 # 配置说明
@@ -58,8 +61,6 @@ question_info_table = code_clustering_question_parse
 # - max_retry: 最大重试次数
 # - max_workers: 并发处理的最大线程数
 # - request_delay: 请求间延迟（秒）
-#
-# [AI_analysis timeout] 部分：
 # - analysis_timeout: AI分析单个任务的超时时间（秒）
 #
 # [Prompt] 部分：
@@ -72,4 +73,7 @@ question_info_table = code_clustering_question_parse
 # [DataTable] 部分：
 # - records_table: 用户答案记录表名
 # - question_info_table: 题目信息解析表名
+#
+# [Template] 部分：
+# - template_id: 模板ID配置
 #

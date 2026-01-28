@@ -63,7 +63,7 @@ def get_data_table_config():
     
     return table_config
 
-def process_data(question_id, term_id):
+def process_data(term_id, question_id):
     """直接从数据库中的真实数据表读取记录"""
     db_config = get_database_config()
     table_config = get_data_table_config()
@@ -155,13 +155,13 @@ def process_data(question_id, term_id):
 def main():
     """主函数"""
     if len(sys.argv) != 3:
-        print("用法: python dataProcess.py <question_id> <term_id>")
+        print("用法: python dataProcess.py <term_id> <question_id>")
         sys.exit(1)
     
-    question_id = sys.argv[1]
-    term_id = sys.argv[2]
+    term_id = sys.argv[1]
+    question_id = sys.argv[2]
     
-    process_data(question_id, term_id)
+    process_data(term_id, question_id)
 
 if __name__ == "__main__":
     main()

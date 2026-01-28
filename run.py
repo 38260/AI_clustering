@@ -66,7 +66,7 @@ def main():
         print("用法: python run.py <term_id> <question_id>")
         print("示例: python run.py 17787 77337")
         print("\n也可以分步执行:")
-        print("  python src/AIProcess/dataProcess.py <question_id> <term_id>")
+        print("  python src/AIProcess/dataProcess.py <term_id> <question_id>")
         print("  python src/AIProcess/AI_process.py <term_id> <question_id>")
         sys.exit(1)
     
@@ -75,7 +75,7 @@ def main():
     print(f"开始执行AI错误分析 [term_id={term_id}, question_id={question_id}]")
     
     commands = [
-        (f"python src/AIProcess/dataProcess.py {question_id} {term_id}", "步骤1: 数据处理"),
+        (f"python src/AIProcess/dataProcess.py {term_id} {question_id}", "步骤1: 数据处理"),
         (f"python src/AIProcess/AI_process.py {term_id} {question_id}", "步骤2: AI分析")
     ]
     

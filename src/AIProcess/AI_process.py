@@ -78,7 +78,7 @@ def get_config():
 
 def create_reusable_category_table(conn, term_id, question_id):
     """创建可复用分类表"""
-    table_name = f"reusableCategory_{term_id}_{question_id}"
+    table_name = f"reusableCategory_{term_id}"
     cursor = conn.cursor()
     
     # 检查表是否存在
@@ -89,10 +89,12 @@ def create_reusable_category_table(conn, term_id, question_id):
         create_table_sql = f"""
         CREATE TABLE {table_name} (
             id INT AUTO_INCREMENT PRIMARY KEY,
+            question_id BIGINT NOT NULL,
             category VARCHAR(100) NOT NULL,
             subcategory VARCHAR(150) NOT NULL,
             thirdCategory VARCHAR(200) NOT NULL,
-            UNIQUE KEY unique_category (category(50), subcategory(80), thirdCategory(100)),
+            UNIQUE KEY unique_category (question_id, category(50), subcategory(80), thirdCategory(100)),
+            INDEX idx_question_id (question_id),
             INDEX idx_category (category),
             INDEX idx_subcategory (subcategory),
             INDEX idx_thirdCategory (thirdCategory)
@@ -106,8 +108,8 @@ def create_reusable_category_table(conn, term_id, question_id):
         ]
         
         insert_sql = f"""
-        INSERT IGNORE INTO {table_name} (category, subcategory, thirdCategory)
-        VALUES (%s, %s, %s)
+        INSERT IGNORE INTO {table_name} (question_id, category, subcategory, thirdCategory)
+        VALUES (%s, %s, %s, %s)
         """
         cursor.executemany(insert_sql, initial_categories)
         conn.commit()
@@ -115,11 +117,11 @@ def create_reusable_category_table(conn, term_id, question_id):
     cursor.close()
     return table_name
 
-def load_categories_from_db(conn, table_name):
-    """从数据库加载分类数据"""
+def load_categories_from_db(conn, table_name, question_id):
+    """从数据库加载分类数据，按question_id筛选"""
     try:
         cursor = conn.cursor(dictionary=True)
-        cursor.execute(f"SELECT DISTINCT category, subcategory, thirdCategory FROM {table_name}")
+        cursor.execute(f"SELECT DISTINCT category, subcategory, thirdCategory FROM {table_name} WHERE question_id = %s", (question_id,))
         rows = cursor.fetchall()
         cursor.close()
         
@@ -158,14 +160,14 @@ def load_categories_from_db(conn, table_name):
         print(f"从数据库加载分类失败: {e}")
         return []
 
-def load_system_prompt(system_prompt_path, conn, category_table_name):
+def load_system_prompt(system_prompt_path, conn, category_table_name, question_id):
     """加载系统提示词"""
     try:
         with open(system_prompt_path, 'r', encoding='utf-8') as f:
             system_prompt = f.read()
         
-        # 从数据库加载分类数据
-        categories = load_categories_from_db(conn, category_table_name)
+        # 从数据库加载分类数据，按question_id筛选
+        categories = load_categories_from_db(conn, category_table_name, question_id)
         categories_text = json.dumps(categories, ensure_ascii=False, indent=2)
         
         # 在系统提示词中插入分类信息
@@ -221,6 +223,7 @@ def create_ai_table(conn, table_name):
         
         if 'question_id' not in columns:
             cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN question_id BIGINT NOT NULL")
+            cursor.execute(f"ALTER TABLE {table_name} ADD INDEX idx_question_id (question_id)")
         if 'category' not in columns:
             cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN category VARCHAR(255)")
         if 'subcategory' not in columns:
@@ -298,11 +301,11 @@ def get_question_info(conn, term_id, question_id):
         print(f"获取题目信息失败: {e}")
         return None
 
-def check_answer_exists(conn, table_name, answer_hash):
-    """检查answer_hash是否已存在"""
+def check_answer_exists(conn, table_name, answer_hash, question_id):
+    """检查answer_hash在指定question_id下是否已存在"""
     try:
         cursor = conn.cursor()
-        cursor.execute(f"SELECT id FROM {table_name} WHERE answer_hash = %s", (answer_hash,))
+        cursor.execute(f"SELECT id FROM {table_name} WHERE answer_hash = %s AND question_id = %s", (answer_hash, question_id))
         result = cursor.fetchone()
         cursor.close()
         return result is not None
@@ -382,7 +385,7 @@ def is_similar_subcategory(new_subcategory, existing_subcategories):
     
     return None
 
-def update_reusable_category_db(conn, category_table_name, ai_response):
+def update_reusable_category_db(conn, category_table_name, ai_response, question_id):
     """更新可复用类别数据库表（带相似性检查和强制刷新）"""
     global category_updates
     
@@ -402,21 +405,21 @@ def update_reusable_category_db(conn, category_table_name, ai_response):
             
             cursor = conn.cursor()
             
-            # 检查是否已存在完全相同的记录
+            # 检查是否已存在完全相同的记录（在同一question_id下）
             cursor.execute(f"""
                 SELECT id FROM {category_table_name} 
-                WHERE category = %s AND subcategory = %s AND thirdCategory = %s
-            """, (category, subcategory, thirdCategory))
+                WHERE question_id = %s AND category = %s AND subcategory = %s AND thirdCategory = %s
+            """, (question_id, category, subcategory, thirdCategory))
             
             if cursor.fetchone():
                 cursor.close()
                 return  # 已存在相同记录
             
-            # 检查是否存在相同的category和subcategory组合
+            # 检查是否存在相同的category和subcategory组合（在同一question_id下）
             cursor.execute(f"""
                 SELECT subcategory FROM {category_table_name} 
-                WHERE category = %s
-            """, (category,))
+                WHERE question_id = %s AND category = %s
+            """, (question_id, category))
             
             existing_subcategories = [row[0] for row in cursor.fetchall()]
             
@@ -436,10 +439,10 @@ def update_reusable_category_db(conn, category_table_name, ai_response):
             
             # 插入新的分类记录
             insert_sql = f"""
-            INSERT IGNORE INTO {category_table_name} (category, subcategory, thirdCategory)
-            VALUES (%s, %s, %s)
+            INSERT IGNORE INTO {category_table_name} (question_id, category, subcategory, thirdCategory)
+            VALUES (%s, %s, %s, %s)
             """
-            cursor.execute(insert_sql, (category, subcategory, thirdCategory))
+            cursor.execute(insert_sql, (question_id, category, subcategory, thirdCategory))
             
             if cursor.rowcount > 0:
                 category_updates['new_subcategories'].append({
@@ -497,18 +500,18 @@ def insert_ai_result(conn, table_name, data):
 def process_single_record(args):
     """处理单条记录"""
     (index, row, db_config, api_config, prompt_config, thread_config, template_config,
-     question_info, system_prompt_path, ai_table_name, category_table_name) = args
+     question_info, system_prompt_path, ai_table_name, category_table_name, question_id) = args
     
     conn = None
     try:
         conn = connect_to_database(db_config)
         
-        # 检查是否已存在
-        if check_answer_exists(conn, ai_table_name, row['answer_hash']):
+        # 检查是否已存在（按question_id筛选）
+        if check_answer_exists(conn, ai_table_name, row['answer_hash'], question_id):
             return "skip", 'skip'
         
-        # 每次都重新加载系统提示词，确保获取最新的分类数据
-        system_prompt = load_system_prompt(system_prompt_path, conn, category_table_name)
+        # 每次都重新加载系统提示词，确保获取最新的分类数据（按question_id筛选）
+        system_prompt = load_system_prompt(system_prompt_path, conn, category_table_name, question_id)
         if not system_prompt:
             return "error", 'system_prompt_load_failed'
         
@@ -532,13 +535,13 @@ def process_single_record(args):
                 print(f"AI响应缺少必要字段 {missing_fields}: {row['answer_hash']}")
                 return "error", f'ai_response_incomplete: missing {missing_fields}'
             
-            # 更新类别库
-            update_reusable_category_db(conn, category_table_name, ai_response)
+            # 更新类别库（包含question_id）
+            update_reusable_category_db(conn, category_table_name, ai_response, question_id)
             
             # 插入结果到数据库
             data = {
                 'answer_hash': row['answer_hash'],
-                'question_id': question_info.get('question_id', ''),
+                'question_id': question_id,
                 'category': ai_response.get('category', ''),
                 'subcategory': ai_response.get('subcategory', ''),
                 'thirdCategory': ai_response.get('thirdCategory', ''),
@@ -592,11 +595,11 @@ def process_ai_analysis(term_id, question_id):
     conn = connect_to_database(db_config)
     
     try:
-        # 创建可复用分类表
+        # 创建可复用分类表（不包含question_id后缀）
         category_table_name = create_reusable_category_table(conn, term_id, question_id)
         
-        # 加载系统提示词
-        system_prompt = load_system_prompt(prompt_config['system_prompt_path'], conn, category_table_name)
+        # 加载系统提示词（按question_id筛选）
+        system_prompt = load_system_prompt(prompt_config['system_prompt_path'], conn, category_table_name, question_id)
         if not system_prompt:
             print("系统提示词加载失败")
             return
@@ -607,8 +610,8 @@ def process_ai_analysis(term_id, question_id):
             print(f"未找到题目信息 [term_id={term_id}, question_id={question_id}]")
             return
         
-        # 创建AI分析表
-        ai_table_name = f"ai_{term_id}_{question_id}"
+        # 创建AI分析表（不包含question_id后缀）
+        ai_table_name = f"ai_{term_id}"
         create_ai_table(conn, ai_table_name)
         
         # 直接从数据库读取数据，而不是从Excel文件
@@ -686,7 +689,7 @@ def process_ai_analysis(term_id, question_id):
         tasks = []
         for index, row in df.iterrows():
             task_args = (index, row, db_config, api_config, prompt_config, thread_config, template_config,
-                        question_info, prompt_config['system_prompt_path'], ai_table_name, category_table_name)
+                        question_info, prompt_config['system_prompt_path'], ai_table_name, category_table_name, question_id)
             tasks.append(task_args)
         
         start_time = time.time()

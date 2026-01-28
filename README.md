@@ -43,12 +43,13 @@ python start_api.py
 ### 数据处理 (dataProcess.py)
 - 从`code_clustering_user_answer_record`表读取数据
 - 按`answer_hash`聚合相同答案的用户记录
-- 输出Excel文件供AI分析使用
+- 输出Excel文件供后续分析使用
 
 ### AI分析 (AI_process.py)
+- 直接从数据库读取并聚合数据（不依赖Excel文件）
 - 调用AI API分析错误代码
-- 实现三级分类并存储到`ai_{term_id}_{question_id}`表
-- 维护`reusableCategory_{term_id}_{question_id}`分类库
+- 实现三级分类并存储到`ai_{term_id}`表（按question_id筛选）
+- 维护`reusableCategory_{term_id}`分类库（按question_id筛选）
 - 生成详细分析报告
 
 ### API服务 (api/app.py)
@@ -80,8 +81,8 @@ question_info_table = code_clustering_question_parse
 ## 输出结果
 
 ### 数据库表
-- `ai_{term_id}_{question_id}` - AI分析结果
-- `reusableCategory_{term_id}_{question_id}` - 错误分类库
+- `ai_{term_id}` - AI分析结果（包含question_id字段用于筛选）
+- `reusableCategory_{term_id}` - 错误分类库（包含question_id字段用于筛选）
 
 ### 文件输出
 - `data/data_{term_id}_{question_id}.xlsx` - 聚合数据
@@ -96,7 +97,7 @@ python run.py 17787 77337
 # 输出示例：
 开始执行AI错误分析 [term_id=17787, question_id=77337]
 
-步骤1: 数据处理 [term_id=17787, question_id=77337]: python src/AIProcess/dataProcess.py 77337 17787
+步骤1: 数据处理 [term_id=17787, question_id=77337]: python src/AIProcess/dataProcess.py 17787 77337
 数据处理完成 [term_id=17787, question_id=77337]: 168 条聚合记录, 168 个用户
 ✅ 步骤1: 数据处理 执行成功 [term_id=17787, question_id=77337] (3.47秒)
 

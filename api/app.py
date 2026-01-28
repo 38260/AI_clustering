@@ -362,6 +362,8 @@ def clustering_analysis():
                 mimetype='application/json; charset=utf-8'
             )
         
+        print(f"没有找到现有分析结果，开始执行分析流程 [term_id={term_id}, question_id={question_id}]")
+        
         # 步骤1: 执行AI分析流程
         start_time = time.time()
         
@@ -371,7 +373,7 @@ def clustering_analysis():
         analysis_timeout = config.getint('API', 'analysis_timeout', fallback=600)
         
         commands = [
-            (f"python src/AIProcess/dataProcess.py {question_id} {term_id}", "步骤1: 数据处理"),
+            (f"python src/AIProcess/dataProcess.py {term_id} {question_id}", "步骤1: 数据处理"),
             (f"python src/AIProcess/AI_process.py {term_id} {question_id}", "步骤2: AI分析")
         ]
         
@@ -445,7 +447,7 @@ def clustering_analysis():
         analysis_results = get_clustering_results(term_id, question_id)
         
         # 检查返回的数据格式
-        if isinstance(analysis_results, dict) and 'detailed_data' in analysis_results:
+        if analysis_results and isinstance(analysis_results, dict) and 'detailed_data' in analysis_results:
             # 新格式：包含详细数据
             detailed_data = analysis_results['detailed_data']
             
@@ -458,10 +460,11 @@ def clustering_analysis():
                 'ai_table_data': detailed_data['ai_table_data']  # AI表中的所有数据（已包含聚合的用户信息）
             }
         else:
-            # 旧格式或空数据
+            # 没有分析结果或分析失败
+            print(f"警告：AI分析完成但没有生成结果 [term_id={term_id}, question_id={question_id}]")
             response_data = {
                 'success': True,
-                'message': '聚类分析完成',
+                'message': '聚类分析完成，但没有生成分析结果',
                 'term_id': term_id,
                 'question_id': question_id,
                 'statistics': {},
@@ -494,7 +497,7 @@ def get_clustering_results(term_id, question_id):
     """
     try:
         # 查询AI分析结果表
-        ai_table_name = f"ai_{term_id}_{question_id}"
+        ai_table_name = f"ai_{term_id}"
         records_table = db_manager.config.get('DataTable', 'records_table')
         
         # 先检查AI结果表是否存在
@@ -512,14 +515,15 @@ def get_clustering_results(term_id, question_id):
         if ai_table_structure:
             print(f"AI表结构: {[row['Field'] for row in ai_table_structure]}")
         
-        # 获取AI表中的所有数据
+        # 获取AI表中的数据，按question_id筛选
         ai_all_data_query = f"""
         SELECT *
         FROM {ai_table_name}
+        WHERE question_id = %s
         ORDER BY category, subcategory, specific_reason
         """
         
-        ai_all_data = db_manager.execute_query(ai_all_data_query)
+        ai_all_data = db_manager.execute_query(ai_all_data_query, (question_id,))
         
         # 获取输入文件中的所有用户数据
         all_users_query = f"""
@@ -601,6 +605,11 @@ def get_clustering_results(term_id, question_id):
         result_data['statistics']['ai_records_count'] = len(result_data['ai_table_data'])
         result_data['statistics']['input_users_count'] = len(hash_to_users) if hash_to_users else 0
         
+        # 如果没有AI分析数据，返回None表示没有现有结果
+        if not result_data['ai_table_data']:
+            print(f"AI表 {ai_table_name} 中没有question_id={question_id}的数据")
+            return None
+        
         # 返回完整的数据结构（删除result_list）
         return {
             'detailed_data': result_data  # 只返回详细数据
@@ -610,17 +619,8 @@ def get_clustering_results(term_id, question_id):
         print(f"获取聚类结果失败: {e}")
         import traceback
         traceback.print_exc()
-        # 返回空的数据结构而不是空列表
-        return {
-            'detailed_data': {
-                'ai_table_data': [],
-                'statistics': {
-                    'ai_records_count': 0,
-                    'input_users_count': 0,
-                    'categories_summary': {}
-                }
-            }
-        }
+        # 发生异常时返回None，表示没有现有结果
+        return None
 
 @app.route('/health', methods=['GET'])
 def health_check():
